@@ -114,7 +114,7 @@ defmodule SymphonyElixir.CLI do
   defp acknowledgement_banner do
     lines = [
       "This Symphony implementation is a low key engineering preview.",
-      "Codex will run without any guardrails.",
+      "Claude will run without any guardrails.",
       "SymphonyElixir is not a supported product and is presented as-is.",
       "To proceed, start with `--i-understand-that-this-will-be-running-without-the-usual-guardrails` CLI argument"
     ]
