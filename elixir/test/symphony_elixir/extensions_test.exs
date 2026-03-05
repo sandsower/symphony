@@ -305,13 +305,13 @@ defmodule SymphonyElixir.ExtensionsTest do
       issue: %Issue{id: "issue-http", identifier: "MT-HTTP", state: "In Progress"},
       session_id: "thread-http",
       turn_count: 7,
-      codex_app_server_pid: nil,
-      last_codex_message: "rendered",
-      last_codex_timestamp: nil,
-      last_codex_event: :notification,
-      codex_input_tokens: 4,
-      codex_output_tokens: 8,
-      codex_total_tokens: 12,
+      claude_session_id: nil,
+      last_claude_message: "rendered",
+      last_claude_timestamp: nil,
+      last_claude_event: :notification,
+      claude_input_tokens: 4,
+      claude_output_tokens: 8,
+      claude_total_tokens: 12,
       started_at: DateTime.utc_now()
     }
 
@@ -349,7 +349,7 @@ defmodule SymphonyElixir.ExtensionsTest do
            } = Jason.decode!(body)
 
     :sys.replace_state(orchestrator_pid, fn state ->
-      update_in(state.running["issue-http"].last_codex_message, fn _ -> %{message: "structured"} end)
+      update_in(state.running["issue-http"].last_claude_message, fn _ -> %{message: "structured"} end)
     end)
 
     {status, _headers, body} = http_request(port, "GET", "/api/v1/MT-HTTP")
@@ -402,13 +402,13 @@ defmodule SymphonyElixir.ExtensionsTest do
       issue: %Issue{id: "issue-html", identifier: "MT-897", state: "In Progress"},
       session_id: "thread-html",
       turn_count: 7,
-      codex_app_server_pid: nil,
-      last_codex_message: "<script>window.xssed=1</script>",
-      last_codex_timestamp: nil,
-      last_codex_event: :notification,
-      codex_input_tokens: 4,
-      codex_output_tokens: 8,
-      codex_total_tokens: 12,
+      claude_session_id: nil,
+      last_claude_message: "<script>window.xssed=1</script>",
+      last_claude_timestamp: nil,
+      last_claude_event: :notification,
+      claude_input_tokens: 4,
+      claude_output_tokens: 8,
+      claude_total_tokens: 12,
       started_at: DateTime.utc_now()
     }
 
@@ -531,14 +531,14 @@ defmodule SymphonyElixir.ExtensionsTest do
           identifier: "MT-BOTH",
           state: "In Progress",
           session_id: "thread-both",
-          codex_app_server_pid: nil,
-          codex_input_tokens: 0,
-          codex_output_tokens: 0,
-          codex_total_tokens: 0,
+          claude_session_id: nil,
+          claude_input_tokens: 0,
+          claude_output_tokens: 0,
+          claude_total_tokens: 0,
           started_at: nil,
-          last_codex_timestamp: nil,
-          last_codex_message: %{unexpected: true},
-          last_codex_event: :notification
+          last_claude_timestamp: nil,
+          last_claude_message: %{unexpected: true},
+          last_claude_event: :notification
         }
       ],
       retrying: [
@@ -550,7 +550,7 @@ defmodule SymphonyElixir.ExtensionsTest do
           error: "still retrying"
         }
       ],
-      codex_totals: %{input_tokens: 0, output_tokens: 0, total_tokens: 0, seconds_running: 0},
+      claude_totals: %{input_tokens: 0, output_tokens: 0, total_tokens: 0, seconds_running: 0},
       rate_limits: nil
     }
 
