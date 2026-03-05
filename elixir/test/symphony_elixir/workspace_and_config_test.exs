@@ -785,6 +785,26 @@ defmodule SymphonyElixir.WorkspaceAndConfigTest do
     assert Config.max_concurrent_agents_for_state(:not_a_string) == 10
   end
 
+  test "config reads tracker label_filter as list of strings" do
+    write_workflow_file!(Workflow.workflow_file_path(),
+      tracker_label_filter: ["symphony", "autofix"]
+    )
+
+    assert Config.tracker_label_filter() == ["symphony", "autofix"]
+  end
+
+  test "config returns empty list when tracker label_filter is nil" do
+    write_workflow_file!(Workflow.workflow_file_path(), tracker_label_filter: nil)
+
+    assert Config.tracker_label_filter() == []
+  end
+
+  test "config returns empty list when tracker label_filter is empty list" do
+    write_workflow_file!(Workflow.workflow_file_path(), tracker_label_filter: [])
+
+    assert Config.tracker_label_filter() == []
+  end
+
   test "workflow prompt is used when building base prompt" do
     workflow_prompt = "Workflow prompt body used as claude instruction."
 
