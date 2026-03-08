@@ -3,7 +3,8 @@
 Rondo turns project work into isolated, autonomous implementation runs, allowing teams to manage
 work instead of supervising coding agents.
 
-<img width="1920" height="1200" alt="2026-03-08-19:11:44-screenshot" src="https://github.com/user-attachments/assets/fdcfc501-f625-4921-b639-d4db806dda5f" />
+<img width="1920" height="1200" alt="2026-03-08-19:14:38-screenshot" src="https://github.com/user-attachments/assets/c7703d5c-6e18-40c3-bf24-fb9723f4f612" />
+
 
 > [!NOTE]
 > This is a fork of [openai/symphony](https://github.com/openai/symphony). The original project
