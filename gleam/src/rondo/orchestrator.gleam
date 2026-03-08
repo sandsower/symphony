@@ -1,0 +1,161 @@
+import gleam/dict.{type Dict}
+import gleam/erlang/process.{type Subject}
+import gleam/int
+import gleam/list
+import gleam/otp/actor
+import gleam/set.{type Set}
+import rondo/agent
+import rondo/claude/cli.{type CliOptions}
+import rondo/claude/event.{type TokenUsage}
+import rondo/config.{type Config}
+import rondo/issue.{type Issue}
+import rondo/run_result.{type RunResult}
+
+pub type OrchestratorMessage {
+  Tick
+  RunFinished(issue_id: String, result: RunResult)
+  AgentNotification(agent.AgentNotification)
+  GetSnapshot(reply_to: Subject(Snapshot))
+  RequestRefresh
+}
+
+pub type RunningEntry {
+  RunningEntry(
+    issue_id: String,
+    identifier: String,
+    state: String,
+    session_id: String,
+    turn: Int,
+    usage: TokenUsage,
+    agent: Subject(agent.AgentMessage),
+  )
+}
+
+pub type Snapshot {
+  Snapshot(
+    running: Dict(String, RunningEntry),
+    completed: Set(String),
+    totals: TokenUsage,
+  )
+}
+
+pub type OrchestratorState {
+  OrchestratorState(
+    config: Config,
+    cli_opts: CliOptions,
+    running: Dict(String, RunningEntry),
+    completed: Set(String),
+    claimed: Set(String),
+    retry_attempts: Dict(String, Int),
+    totals: TokenUsage,
+    fetch_candidates: fn() -> Result(List(Issue), Nil),
+    fetch_states: fn(List(String)) -> Result(List(Issue), Nil),
+  )
+}
+
+pub fn start(
+  config: Config,
+  cli_opts: CliOptions,
+  fetch_candidates: fn() -> Result(List(Issue), Nil),
+  fetch_states: fn(List(String)) -> Result(List(Issue), Nil),
+) -> Result(Subject(OrchestratorMessage), actor.StartError) {
+  actor.start_spec(actor.Spec(
+    init: fn() {
+      let state =
+        OrchestratorState(
+          config: config,
+          cli_opts: cli_opts,
+          running: dict.new(),
+          completed: set.new(),
+          claimed: set.new(),
+          retry_attempts: dict.new(),
+          totals: event.zero_usage(),
+          fetch_candidates: fetch_candidates,
+          fetch_states: fetch_states,
+        )
+      actor.Ready(state, process.new_selector())
+    },
+    init_timeout: 5000,
+    loop: handle_message,
+  ))
+}
+
+fn handle_message(
+  msg: OrchestratorMessage,
+  state: OrchestratorState,
+) -> actor.Next(OrchestratorMessage, OrchestratorState) {
+  case msg {
+    Tick -> {
+      let new_state = poll_and_dispatch(state)
+      actor.continue(new_state)
+    }
+    RunFinished(issue_id, _result) -> {
+      let new_running = dict.delete(state.running, issue_id)
+      let new_completed = set.insert(state.completed, issue_id)
+      actor.continue(OrchestratorState(
+        ..state,
+        running: new_running,
+        completed: new_completed,
+      ))
+    }
+    AgentNotification(notification) -> {
+      let new_state = handle_agent_notification(state, notification)
+      actor.continue(new_state)
+    }
+    GetSnapshot(reply_to) -> {
+      process.send(reply_to, Snapshot(
+        running: state.running,
+        completed: state.completed,
+        totals: state.totals,
+      ))
+      actor.continue(state)
+    }
+    RequestRefresh -> {
+      let new_state = poll_and_dispatch(state)
+      actor.continue(new_state)
+    }
+  }
+}
+
+fn poll_and_dispatch(state: OrchestratorState) -> OrchestratorState {
+  case state.fetch_candidates() {
+    Error(_) -> state
+    Ok(issues) -> {
+      let available_slots =
+        state.config.max_concurrent_agents - dict.size(state.running)
+      let to_start =
+        issues
+        |> list.filter(fn(i) {
+          !dict.has_key(state.running, i.id)
+          && !set.contains(state.completed, i.id)
+          && !set.contains(state.claimed, i.id)
+        })
+        |> list.take(int.max(0, available_slots))
+
+      let new_claimed =
+        list.fold(to_start, state.claimed, fn(acc, i) {
+          set.insert(acc, i.id)
+        })
+
+      OrchestratorState(..state, claimed: new_claimed)
+    }
+  }
+}
+
+fn handle_agent_notification(
+  state: OrchestratorState,
+  notification: agent.AgentNotification,
+) -> OrchestratorState {
+  case notification {
+    agent.AgentStarted(_) -> state
+    agent.AgentEvent(_issue_id, evt) -> {
+      let new_totals = case evt {
+        event.AssistantMessage(_, usage) -> event.add_usage(state.totals, usage)
+        event.ResultEvent(_, _, usage) -> event.add_usage(state.totals, usage)
+        _ -> state.totals
+      }
+      OrchestratorState(..state, totals: new_totals)
+    }
+    agent.AgentFinished(_, _) -> state
+  }
+}
