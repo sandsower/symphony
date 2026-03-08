@@ -9,7 +9,7 @@ This directory contains the current Elixir/OTP implementation of Rondo, based on
 
 ## Screenshot
 
-![Rondo screenshot](../.github/media/elixir-screenshot.png)
+<img width="1920" height="1200" alt="2026-03-08-18:43:48-screenshot" src="https://github.com/user-attachments/assets/dc75a0a4-3c2f-417a-ad73-b11619ed5ada" />
 
 ## How it works
 
