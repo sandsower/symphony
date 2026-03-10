@@ -11,6 +11,8 @@ defmodule Rondo.Orchestrator do
   alias Rondo.Linear.Issue
 
   @continuation_retry_delay_ms 1_000
+  @poll_retry_delay_ms 5_000
+  @slot_wait_delay_ms 5_000
   @failure_retry_base_ms 10_000
   # Slightly above the dashboard render interval so "checking now…" can render.
   @poll_transition_render_delay_ms 20
@@ -739,8 +741,8 @@ defmodule Rondo.Orchestrator do
          schedule_issue_retry(
            state,
            issue_id,
-           attempt + 1,
-           Map.merge(metadata, %{error: "retry poll failed: #{inspect(reason)}"})
+           attempt,
+           Map.merge(metadata, %{error: "retry poll failed: #{inspect(reason)}", delay_type: :poll_retry})
          )}
     end
   end
@@ -808,10 +810,11 @@ defmodule Rondo.Orchestrator do
        schedule_issue_retry(
          state,
          issue.id,
-         attempt + 1,
+         attempt,
          Map.merge(metadata, %{
            identifier: issue.identifier,
-           error: "no available orchestrator slots"
+           error: "no available orchestrator slots",
+           delay_type: :slot_wait
          })
        )}
     end
@@ -822,10 +825,11 @@ defmodule Rondo.Orchestrator do
   end
 
   defp retry_delay(attempt, metadata) when is_integer(attempt) and attempt > 0 and is_map(metadata) do
-    if metadata[:delay_type] == :continuation and attempt == 1 do
-      @continuation_retry_delay_ms
-    else
-      failure_retry_delay(attempt)
+    case metadata[:delay_type] do
+      :continuation when attempt == 1 -> @continuation_retry_delay_ms
+      :poll_retry -> @poll_retry_delay_ms
+      :slot_wait -> @slot_wait_delay_ms
+      _ -> failure_retry_delay(attempt)
     end
   end
 
